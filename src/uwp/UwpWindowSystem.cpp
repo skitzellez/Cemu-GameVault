@@ -421,7 +421,9 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 {
 	const std::wstring rawUri{ uri.RawUri().c_str() };
 	const size_t colon = rawUri.find(L':');
-	if (colon == std::wstring::npos || !EqualsIgnoreCase(std::wstring_view(rawUri).substr(0, colon), L"cemu"))
+	// Game Vault starts games through its own link (gamevault-cemu), the same form as cemu:
+	if (colon == std::wstring::npos || (!EqualsIgnoreCase(std::wstring_view(rawUri).substr(0, colon), L"cemu") &&
+										!EqualsIgnoreCase(std::wstring_view(rawUri).substr(0, colon), L"gamevault-cemu")))
 	{
 		WriteBootstrapLog(fmt::format("CemuUwp protocol activation rejected unexpected URI scheme: {}", winrt::to_string(uri.RawUri())));
 		return {};

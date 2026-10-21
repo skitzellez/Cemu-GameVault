@@ -1,3 +1,21 @@
+# Cemu for Game Vault (Xbox Series X|S, Dev Mode)
+
+Cemu, the Wii U emulator, built for [Game Vault](https://github.com/skitzellez/xbox-game-vault): pick a Wii U game in
+Game Vault and it starts here, then comes back to Game Vault when you quit.
+
+**Credits:** the Xbox (UWP) port and its Direct3D 12 renderer are the work of **DanP142**
+([danprice142/Cemu-UWP](https://github.com/danprice142/Cemu-UWP)). Cemu itself is by the
+[Cemu team](https://github.com/cemu-project/Cemu). This build adds only what Game Vault needs: its own app name
+(so another Cemu on the console stays as it is) and the `gamevault-cemu:` link.
+
+Licence: Mozilla Public License 2.0, like Cemu (files in `dependencies` keep their own licences). The source of
+every release is this branch (`gamevault`).
+
+Games: `.wua`, `.wud`, `.wux`, or an unpacked game folder (`code\*.rpx`). Encrypted `.wud` / `.wux` images need
+your own `keys.txt`. No games, keys or Nintendo files come with this app.
+
+---
+
 # **Cemu - Wii U emulator**
 
 [![Build Process](https://github.com/cemu-project/Cemu/actions/workflows/build.yml/badge.svg)](https://github.com/cemu-project/Cemu/actions/workflows/build.yml)

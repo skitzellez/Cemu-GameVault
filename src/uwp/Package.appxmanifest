@@ -5,11 +5,11 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   IgnorableNamespaces="uap mp rescap">
-  <Identity Name="Cemu.Libretro.Uwp" Publisher="CN=DanP142" Version="0.2.6.7" />
-  <mp:PhoneIdentity PhoneProductId="d24d337f-624b-46ac-bd56-98f009302dc0" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Identity Name="GamerDad.CemuForGameVault" Publisher="CN=GamerDad" Version="0.2.6.100" ProcessorArchitecture="x64" />
+  <mp:PhoneIdentity PhoneProductId="2387940d-94ad-404e-b5e7-19d05f8242e7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>Cemu</DisplayName>
-    <PublisherDisplayName>DanP142</PublisherDisplayName>
+    <DisplayName>Cemu for Game Vault</DisplayName>
+    <PublisherDisplayName>Skitzelles (Cemu build, Xbox port by DanP142)</PublisherDisplayName>
     <Logo>resources/StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
@@ -24,8 +24,8 @@
   <Applications>
     <Application Id="CemuUwp" Executable="$targetnametoken$.exe" EntryPoint="CemuUwp.App">
       <uap:VisualElements
-        DisplayName="Cemu"
-        Description="Cemu native UWP host"
+        DisplayName="Cemu for Game Vault"
+        Description="Cemu, the Wii U emulator, for Game Vault. Xbox port by DanP142. Wii U is a trademark of Nintendo; Cemu is not affiliated with Nintendo."
         Square150x150Logo="resources/Square150x150Logo.png"
         Square44x44Logo="resources/Square44x44Logo.png"
         BackgroundColor="#202020">
@@ -35,6 +35,12 @@
         <uap:Extension Category="windows.protocol">
           <uap:Protocol Name="cemu">
             <uap:DisplayName>Cemu</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+        <!-- Game Vault's own link, so another Cemu installed next to it stays as it is -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="gamevault-cemu">
+            <uap:DisplayName>Cemu for Game Vault</uap:DisplayName>
           </uap:Protocol>
         </uap:Extension>
         <uap:Extension Category="windows.fileTypeAssociation">
