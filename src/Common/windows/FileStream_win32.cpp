@@ -26,8 +26,50 @@ HANDLE CemuCreateFile(const wchar_t* path, DWORD desiredAccess, DWORD shareMode,
 }
 }
 
+namespace
+{
+std::mutex s_netFilesLock;
+std::map<std::wstring, std::shared_ptr<FileStreamNetSource>> s_netFiles;
+
+std::wstring NetFileKey(std::wstring path)
+{
+	for (auto& c : path)
+		c = c == L'/' ? L'\\' : towlower(c);
+	return path;
+}
+}
+
+void FileStream::RegisterNetFile(const fs::path& standIn, std::shared_ptr<FileStreamNetSource> source)
+{
+	std::scoped_lock lock(s_netFilesLock);
+	s_netFiles[NetFileKey(standIn.wstring())] = std::move(source);
+}
+
+bool FileStream::IsNetFile(const fs::path& path)
+{
+	std::scoped_lock lock(s_netFilesLock);
+	return !s_netFiles.empty() && s_netFiles.count(NetFileKey(path.wstring())) != 0;
+}
+
+FileStream* FileStream::openNet(const std::wstring& path)
+{
+	std::shared_ptr<FileStreamNetSource> source;
+	{
+		std::scoped_lock lock(s_netFilesLock);
+		if (s_netFiles.empty())
+			return nullptr;
+		auto it = s_netFiles.find(NetFileKey(path));
+		if (it == s_netFiles.end())
+			return nullptr;
+		source = it->second;
+	}
+	return new FileStream(std::move(source));
+}
+
 FileStream* FileStream::openFile(std::string_view path)
 {
+	if (FileStream* net = openNet(boost::nowide::widen(path.data(), path.size())))
+		return net;
 	HANDLE hFile = CemuCreateFile(boost::nowide::widen(path.data(), path.size()).c_str(), FILE_GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING);
 	if (hFile == INVALID_HANDLE_VALUE)
 		return nullptr;
@@ -36,6 +78,9 @@ FileStream* FileStream::openFile(std::string_view path)
 
 FileStream* FileStream::openFile(const wchar_t* path, bool allowWrite)
 {
+	if (!allowWrite)
+		if (FileStream* net = openNet(path))
+			return net;
 	HANDLE hFile = CemuCreateFile(path, allowWrite ? (FILE_GENERIC_READ | FILE_GENERIC_WRITE) : FILE_GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, OPEN_EXISTING);
 	if (hFile == INVALID_HANDLE_VALUE)
 		return nullptr;
@@ -92,6 +137,11 @@ std::optional<std::vector<uint8>> FileStream::LoadIntoMemory(const fs::path& pat
 
 void FileStream::SetPosition(uint64 pos)
 {
+	if (m_net)
+	{
+		m_netPos = pos;
+		return;
+	}
 	LARGE_INTEGER distance{};
 	distance.QuadPart = pos;
 	SetFilePointerEx(m_hFile, distance, nullptr, FILE_BEGIN);
@@ -99,6 +149,8 @@ void FileStream::SetPosition(uint64 pos)
 
 uint64 FileStream::GetSize()
 {
+	if (m_net)
+		return m_net->Size();
 	LARGE_INTEGER fileSize{};
 	GetFileSizeEx(m_hFile, &fileSize);
 	return (uint64)fileSize.QuadPart;
@@ -106,6 +158,8 @@ uint64 FileStream::GetSize()
 
 bool FileStream::SetEndOfFile()
 {
+	if (m_net)
+		return false;
 	return ::SetEndOfFile(m_hFile) != 0;
 }
 
@@ -114,12 +168,26 @@ void FileStream::extract(std::vector<uint8>& data)
 	DWORD fileSize = (DWORD)std::min<uint64>(GetSize(), std::numeric_limits<DWORD>::max());
 	data.resize(fileSize);
 	SetPosition(0);
+	if (m_net)
+	{
+		data.resize(readData(data.data(), fileSize));
+		return;
+	}
 	DWORD bt;
 	ReadFile(m_hFile, data.data(), fileSize, &bt, nullptr);
 }
 
 uint32 FileStream::readData(void* data, uint32 length)
 {
+	if (m_net)
+	{
+		uint64 size = m_net->Size();
+		uint32 n = m_netPos >= size ? 0 : (uint32)std::min<uint64>(length, size - m_netPos);
+		if (n && !m_net->Read(m_netPos, data, n))
+			return 0;
+		m_netPos += n;
+		return n;
+	}
 	DWORD bytesRead = 0;
 	ReadFile(m_hFile, data, length, &bytesRead, NULL);
 	return bytesRead;
@@ -159,6 +227,8 @@ bool FileStream::readLine(std::string& line)
 
 sint32 FileStream::writeData(const void* data, sint32 length)
 {
+	if (m_net)
+		return 0;   // read only
 	DWORD bytesWritten = 0;
 	WriteFile(m_hFile, data, length, &bytesWritten, NULL);
 	return bytesWritten;
@@ -209,6 +279,10 @@ FileStream::FileStream(HANDLE hFile)
 {
 	m_hFile = hFile;
 	m_isValid = true;
+}
+
+FileStream::FileStream(std::shared_ptr<FileStreamNetSource> net) : m_net(std::move(net))
+{
 }
 
 bool FileStream::WriteFileAtomic(const fs::path& path, std::span<uint8> fileData, bool allowTargetFileRename)

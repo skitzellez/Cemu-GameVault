@@ -5,7 +5,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   IgnorableNamespaces="uap mp rescap">
-  <Identity Name="GamerDad.CemuForGameVault" Publisher="CN=GamerDad" Version="0.2.6.100" ProcessorArchitecture="x64" />
+  <Identity Name="GamerDad.CemuForGameVault" Publisher="CN=GamerDad" Version="0.2.6.101" ProcessorArchitecture="x64" />
   <mp:PhoneIdentity PhoneProductId="2387940d-94ad-404e-b5e7-19d05f8242e7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Cemu for Game Vault</DisplayName>

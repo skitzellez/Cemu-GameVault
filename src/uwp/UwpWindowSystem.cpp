@@ -5,6 +5,7 @@
 #include "UwpFrontend.h"
 #include "UwpInputProvider.h"
 #include "UwpStorageService.h"
+#include "UwpNetGame.h"
 
 #include "WindowSystem.h"
 #include "Cemu/Logging/CemuLogging.h"
@@ -494,6 +495,19 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 		return reject("Cemu protocol command must provide a game path with -g or --game.");
 	}
 	request.launchPath = *launchPath;
+
+	// Game Vault: a Wii U disc image on a PC's shared folder or a NAS, read over the network (UwpNetGame.cpp)
+	if (const std::string launchUtf8 = _pathToUtf8(request.launchPath); launchUtf8.rfind("smb://", 0) == 0)
+	{
+		const auto netcred = TryGetQueryParameter(rawQuery, L"netcred");
+		fs::path standIn = CemuUwp::NetGame::Open(launchUtf8, netcred ? *netcred : std::wstring());
+		if (standIn.empty())
+		{
+			LaunchSettings::ResetGameLaunchOverrides();
+			return reject("The game could not be opened on the network. Check that the PC or NAS is on and shared.");
+		}
+		request.launchPath = standIn;
+	}
 
 	CEMU_UWP_BOOTSTRAP_TRACE(fmt::format("CemuUwp protocol activation parsed launch path: {}", _pathToUtf8(request.launchPath)));
 	if (!request.launchOnExit.empty())

@@ -180,7 +180,8 @@ bool TitleInfo::ParseWuaTitleFolderName(std::string_view name, TitleId& titleIdO
 bool TitleInfo::DetectFormat(const fs::path& path, fs::path& pathOut, TitleDataFormat& formatOut)
 {
 	std::error_code ec;
-	if (path.has_extension() && fs::is_regular_file(path, ec))
+	// (FileStream::IsNetFile: Game Vault's network game, read over the network under a stand-in path)
+	if (path.has_extension() && (fs::is_regular_file(path, ec) || FileStream::IsNetFile(path)))
 	{
 		std::string filenameStr = _pathToUtf8(path.filename());
 		if (boost::iends_with(filenameStr, ".rpx"))

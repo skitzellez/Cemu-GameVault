@@ -20,6 +20,8 @@ set(CEMU_UWP_SOURCES
 	UwpInputMappingHost.h
 	UwpMemoryBudgetService.cpp
 	UwpMemoryBudgetService.h
+	UwpNetGame.cpp
+	UwpNetGame.h
 	UwpStorageService.cpp
 	UwpStorageService.h
 	UwpTranslation.cpp
@@ -81,6 +83,12 @@ endforeach()
 list(APPEND CEMU_UWP_CONTENT ${CEMU_UWP_FFMPEG_RUNTIME_DLLS} ${CEMU_UWP_FFMPEG_NOTICES})
 list(APPEND CEMU_UWP_RUNTIME_DLLS ${CEMU_UWP_FFMPEG_RUNTIME_DLLS})
 
+# Game Vault: network games (src/uwp/UwpNetGame.cpp) read through libsmb2 (LGPL-2.1, the separate smb2.dll, loaded
+# only when a network game starts), the same build Game Vault uses; its licence goes into the package
+set(CEMU_UWP_LIBSMB2_ROOT "${CMAKE_SOURCE_DIR}/dependencies/uwp/libsmb2")
+list(APPEND CEMU_UWP_CONTENT "${CEMU_UWP_LIBSMB2_ROOT}/smb2.dll" "${CEMU_UWP_LIBSMB2_ROOT}/libsmb2-LGPL-2.1-license.txt")
+list(APPEND CEMU_UWP_RUNTIME_DLLS "${CEMU_UWP_LIBSMB2_ROOT}/smb2.dll")
+
 if(CMAKE_VS_PLATFORM_NAME STREQUAL "x64")
 	set(CEMU_UWP_DXC_ARCH "x64")
 elseif(CMAKE_VS_PLATFORM_NAME STREQUAL "ARM64")
@@ -120,6 +128,10 @@ foreach(content_file IN LISTS CEMU_UWP_CONTENT)
 		if(content_file MATCHES "^${CMAKE_CURRENT_SOURCE_DIR}/assets/")
 			file(RELATIVE_PATH asset_relative "${CMAKE_CURRENT_SOURCE_DIR}/assets" "${content_file}")
 			set(content_relative "resources/${asset_relative}")
+		elseif(content_file STREQUAL "${CEMU_UWP_LIBSMB2_ROOT}/smb2.dll")
+			set(content_relative "smb2.dll")
+		elseif(content_file MATCHES "^${CEMU_UWP_LIBSMB2_ROOT}/")
+			set(content_relative "licenses/libsmb2/${content_name}")
 		elseif(content_file MATCHES "^${CEMU_UWP_FFMPEG_ROOT}/bin/")
 			set(content_relative "${content_name}")
 		elseif(content_file MATCHES "^${CEMU_UWP_FFMPEG_ROOT}/")
