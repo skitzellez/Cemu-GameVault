@@ -60,6 +60,8 @@
 
 std::atomic_bool g_isGPUInitFinished = false;
 
+static std::string s_launchFailure;   // CemuHost::LastLaunchFailure
+
 namespace
 {
 bool s_initialized = false;
@@ -126,7 +128,9 @@ void TraceHostStage(std::string_view message)
 	{
 	}
 #else
-	(void)message;
+	// Game Vault: the start's steps go into log.txt, so a start that stops on the way says where (a player report
+	// carries it; a Wii U game from the network once stopped after the renderer with nothing more in the log)
+	cemuLog_log(LogType::Force, "host: {}", message);
 #endif
 }
 
@@ -595,8 +599,19 @@ bool PrepareLaunchPath(const fs::path& launchPath)
 		return true;
 	}
 
+	if (launchTitle.GetInvalidReason() == TitleInfo::InvalidReason::NO_DISC_KEY)
+	{
+		// an encrypted .wud / .wux: the key comes with the player's own disc dump and cannot be shipped
+		TraceHostStage("prepare path: no disc key for this disc image");
+		s_launchFailure = "nokey";
+		WindowSystem::ShowErrorDialog(fmt::format(
+			"This Wii U disc image is encrypted and its disc key is missing.\nPut the key file from your disc dump next to it, named \"{}\", or add the key to keys.txt.",
+			_pathToUtf8(launchPath.stem()) + ".key"));
+		return false;
+	}
 	const CafeTitleFileType fileType = DetermineCafeSystemFileType(launchPath);
-	TraceHostStage(fmt::format("prepare path: title info invalid, file type {}", static_cast<int>(fileType)));
+	TraceHostStage(fmt::format("prepare path: title info invalid (reason {}), file type {}",
+							   static_cast<int>(launchTitle.GetInvalidReason()), static_cast<int>(fileType)));
 	if (fileType == CafeTitleFileType::RPX || fileType == CafeTitleFileType::ELF)
 	{
 		const CafeSystem::PREPARE_STATUS_CODE status = CafeSystem::PrepareForegroundTitleFromStandaloneRPX(launchPath);
@@ -777,9 +792,12 @@ bool LaunchPath(const fs::path& launchPath)
 		RebuildFrontendRenderer();
 	EnsureAudioInitialized();
 	EnsureGraphicPacksLoaded();
+	s_launchFailure.clear();
 	if (!PrepareLaunchPath(launchPath))
 	{
 		TraceHostStage("launch prepare failed");
+		if (s_launchFailure.empty())
+			s_launchFailure = "failed";
 		return false;
 	}
 
@@ -795,6 +813,11 @@ bool LaunchPath(const fs::path& launchPath)
 	SyncFrontendActivity();
 	TraceHostStage("launch submitted");
 	return true;
+}
+
+std::string LastLaunchFailure()
+{
+	return s_launchFailure;
 }
 
 bool RestartTitle()

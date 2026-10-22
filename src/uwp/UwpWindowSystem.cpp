@@ -504,7 +504,8 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 		if (standIn.empty())
 		{
 			LaunchSettings::ResetGameLaunchOverrides();
-			return reject("The game could not be opened on the network. Check that the PC or NAS is on and shared.");
+			return reject("The game could not be opened on the network. Check that the PC or NAS is on and shared.\n" +
+						  CemuUwp::NetGame::LastError());
 		}
 		request.launchPath = standIn;
 	}
@@ -514,6 +515,8 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 		CEMU_UWP_BOOTSTRAP_TRACE(fmt::format("CemuUwp protocol activation parsed launchOnExit: {}", winrt::to_string(winrt::hstring(request.launchOnExit.c_str()))));
 	return request;
 }
+
+void LaunchProtocolReturnUri();
 
 bool TryConsumePendingProtocolLaunch()
 {
@@ -540,6 +543,16 @@ bool TryConsumePendingProtocolLaunch()
 	{
 		WriteBootstrapLog("CemuUwp protocol launch failed");
 		LaunchSettings::ResetGameLaunchOverrides();
+		// Game Vault started it: back there at once with the reason, which Game Vault shows (a notification here
+		// was easy to miss, and the player was left on Cemu's own menu)
+		if (Trim(request->launchOnExit).rfind(L"gamevault:", 0) == 0)
+		{
+			{
+				std::scoped_lock lock(g_protocolLaunchMutex);
+				g_launchOnExitUri = std::wstring(L"gamevault:?from=cemu-") + std::wstring(winrt::to_hstring(CemuHost::LastLaunchFailure()));
+			}
+			LaunchProtocolReturnUri();
+		}
 		return true;
 	}
 	return true;

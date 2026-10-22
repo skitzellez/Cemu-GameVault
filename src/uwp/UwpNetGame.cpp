@@ -32,6 +32,8 @@ namespace CemuUwp::NetGame
 {
 namespace
 {
+	std::string s_lastError;
+
 	// libsmb2 (include/smb2/libsmb2.h), the few calls used; the library is loaded at run time
 	struct smb2_context;
 	struct smb2fh;
@@ -64,7 +66,8 @@ namespace
 		HMODULE m = LoadPackagedLibrary(L"smb2.dll", 0);
 		if (!m)
 		{
-			cemuLog_log(LogType::Force, "network: smb2.dll could not be loaded ({})", GetLastError());
+			s_lastError = fmt::format("smb2.dll could not be loaded ({})", GetLastError());
+			cemuLog_log(LogType::Force, "network: {}", s_lastError);
 			return nullptr;
 		}
 		auto get = [&](auto& fn, const char* name) {
@@ -181,7 +184,8 @@ namespace
 			m_api->set_password(m_ctx, m_cred.password.c_str());
 			if (m_api->connect_share(m_ctx, m_cred.server.c_str(), m_cred.share.c_str(), user.c_str()) < 0)
 			{
-				cemuLog_log(LogType::Force, "network: {}\\{}: {}", m_cred.server, m_cred.share, m_api->get_error(m_ctx));
+				s_lastError = fmt::format("{}\\{} as {}: {}", m_cred.server, m_cred.share, user, m_api->get_error(m_ctx));
+				cemuLog_log(LogType::Force, "network: {}", s_lastError);
 				m_api->destroy_context(m_ctx);
 				m_ctx = nullptr;
 				return false;
@@ -189,6 +193,7 @@ namespace
 			m_fh = m_api->open(m_ctx, m_path.c_str(), O_RDONLY);
 			if (!m_fh)
 			{
+				s_lastError = fmt::format("{} could not be opened: {}", m_path, m_api->get_error(m_ctx));
 				Drop();
 				return false;
 			}
@@ -294,6 +299,14 @@ namespace
 			}
 			pick->chunk = int64_t(chunk);
 			pick->used = ++m_clock;
+			// how the reading goes: the first reads, then every 64 MB (a start that stalls shows whether the
+			// network is still being read)
+			m_fetched += len;
+			if (++m_fetches <= 4 || m_fetched >= m_nextReport)
+			{
+				m_nextReport = m_fetched + (64ull << 20);
+				cemuLog_log(LogType::Force, "network: read {:x} ({} pieces, {} MB so far)", at, m_fetches, m_fetched >> 20);
+			}
 			return pick;
 		}
 
@@ -307,6 +320,7 @@ namespace
 		std::mutex m_lock;
 		Slot m_slots[kSlots];
 		uint64_t m_clock = 0;
+		uint64_t m_fetched = 0, m_fetches = 0, m_nextReport = 0;
 	};
 
 	// a small file read whole (a disc key next to the image)
@@ -337,8 +351,14 @@ namespace
 	}
 }
 
+std::string LastError()
+{
+	return s_lastError;
+}
+
 std::filesystem::path Open(const std::string& url, const std::wstring& credFile)
 {
+	s_lastError.clear();
 	// "smb://server/share/a/b.wux" -> server, share, "a\b.wux" (libsmb2 sends the path as it is: Windows separators)
 	if (url.rfind("smb://", 0) != 0)
 		return {};
@@ -353,6 +373,8 @@ std::filesystem::path Open(const std::string& url, const std::wstring& credFile)
 	std::replace(path.begin(), path.end(), '/', '\\');
 	const Smb2* api = LoadSmb2();
 	Cred cred = ReadCred(credFile, server, share);
+	if (cred.user == "Guest" && !credFile.empty())
+		cemuLog_log(LogType::Force, "network: no sign-in for {}\\{} in Game Vault's file", server, share);
 	if (!api)
 	{
 		Wipe(cred.password);

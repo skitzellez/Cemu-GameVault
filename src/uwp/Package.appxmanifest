@@ -5,10 +5,10 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   IgnorableNamespaces="uap mp rescap">
-  <Identity Name="GamerDad.CemuForGameVault" Publisher="CN=GamerDad" Version="0.2.6.101" ProcessorArchitecture="x64" />
+  <Identity Name="GamerDad.CemuForGameVault" Publisher="CN=GamerDad" Version="0.2.6.104" ProcessorArchitecture="x64" />
   <mp:PhoneIdentity PhoneProductId="2387940d-94ad-404e-b5e7-19d05f8242e7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>Cemu for Game Vault</DisplayName>
+    <DisplayName>Game Vault · Wii U (Cemu)</DisplayName>
     <PublisherDisplayName>Skitzelles (Cemu build, Xbox port by DanP142)</PublisherDisplayName>
     <Logo>resources/StoreLogo.png</Logo>
   </Properties>
@@ -24,7 +24,7 @@
   <Applications>
     <Application Id="CemuUwp" Executable="$targetnametoken$.exe" EntryPoint="CemuUwp.App">
       <uap:VisualElements
-        DisplayName="Cemu for Game Vault"
+        DisplayName="Game Vault · Wii U (Cemu)"
         Description="Cemu, the Wii U emulator, for Game Vault. Xbox port by DanP142. Wii U is a trademark of Nintendo; Cemu is not affiliated with Nintendo."
         Square150x150Logo="resources/Square150x150Logo.png"
         Square44x44Logo="resources/Square44x44Logo.png"
@@ -57,6 +57,14 @@
       </Extensions>
     </Application>
   </Applications>
+  <!-- Game Vault's shared folder (same publisher): the one-time sign-in for a game on a network share (netcred) -->
+  <Extensions>
+    <Extension Category="windows.publisherCacheFolders">
+      <PublisherCacheFolders>
+        <Folder Name="games" />
+      </PublisherCacheFolders>
+    </Extension>
+  </Extensions>
   <Capabilities>
     <rescap:Capability Name="expandedResources" />
     <rescap:Capability Name="broadFileSystemAccess" />

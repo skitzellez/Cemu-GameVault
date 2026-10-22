@@ -12,4 +12,7 @@ namespace CemuUwp::NetGame
 	// The file is read once, written over and deleted. The game is then read over the network (libsmb2, smb2.dll)
 	// through FileStream under the stand-in path returned here; empty when it cannot be opened.
 	std::filesystem::path Open(const std::string& url, const std::wstring& credFile);
+
+	// why the last Open failed, for the message on screen (Cemu's log is not running yet at a link start)
+	std::string LastError();
 }

@@ -16,6 +16,9 @@ namespace CemuHost
 
 	bool Initialize(const winrt::Windows::UI::Core::CoreWindow& window);
 	bool LaunchPath(const fs::path& launchPath);
+	// Game Vault: why the last LaunchPath failed, as a short word for the way back ("nokey": an encrypted disc
+	// image without its disc key; "failed": anything else), empty when it started
+	std::string LastLaunchFailure();
 	void EnsureAudioInitialized();
 	void EnsureGraphicPacksLoaded();
 	bool RestartTitle();
