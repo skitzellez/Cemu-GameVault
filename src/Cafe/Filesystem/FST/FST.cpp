@@ -201,26 +201,44 @@ bool FSTVolume::FindDiscKey(const fs::path& path, NCrypto::AesKey& discTitleKey)
 		return false;
 
 	// try all the keys in the key cache
-	uint8 headerDecrypted[sizeof(header)-16];
-	for (sint32 i = 0; i < 0x7FFFFFFF; i++)
-	{
-		uint8* key128 = KeyCache_GetAES128(i);
-		if (key128 == NULL)
-			break;
-		AES128_CBC_decrypt(headerDecrypted, header + 16, sizeof(headerDecrypted), key128, header);
-		if (std::all_of(headerDecrypted, headerDecrypted + sizeof(headerDecrypted), [](const uint8 v) {return v == 0; }))
+	auto tryKeyCache = [&]() {
+		uint8 headerDecrypted[sizeof(header)-16];
+		for (sint32 i = 0; i < 0x7FFFFFFF; i++)
 		{
-			// key found
-			std::memcpy(discTitleKey.b, key128, 16);
-			return true;
+			uint8* key128 = KeyCache_GetAES128(i);
+			if (key128 == NULL)
+				break;
+			AES128_CBC_decrypt(headerDecrypted, header + 16, sizeof(headerDecrypted), key128, header);
+			if (std::all_of(headerDecrypted, headerDecrypted + sizeof(headerDecrypted), [](const uint8 v) {return v == 0; }))
+			{
+				// key found
+				std::memcpy(discTitleKey.b, key128, 16);
+				return true;
+			}
 		}
-	}
+		return false;
+	};
+	if (tryKeyCache())
+		return true;
 
 	// check for a key file next to the WUD file
 	fs::path keyPath = path;
 	keyPath.replace_extension("key");
 	std::unique_ptr<FileStream> keyFile(FileStream::openFile2(keyPath));
-	return keyFile && keyFile->readData(discTitleKey.b, sizeof(discTitleKey.b)) == sizeof(discTitleKey.b);
+	if (keyFile && keyFile->readData(discTitleKey.b, sizeof(discTitleKey.b)) == sizeof(discTitleKey.b))
+		return true;
+
+	// Game Vault: a keys.txt kept with the games, in the game's folder or any folder above it up to the drive root
+	fs::path dir = path.parent_path();
+	for (int depth = 0; depth < 8 && !dir.empty(); depth++)
+	{
+		if (KeyCache_AddKeysFile(dir / "keys.txt") && tryKeyCache())
+			return true;
+		if (dir == dir.root_path() || dir.parent_path() == dir)
+			break;
+		dir = dir.parent_path();
+	}
+	return false;
 }
 
 // open WUD image using key cache

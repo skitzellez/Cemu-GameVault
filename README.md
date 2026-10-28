@@ -16,7 +16,9 @@ Game Vault and it starts here, then comes back to Game Vault when you quit. On t
 ## ⚠️ Keys: you need your own
 
 Encrypted `.wud` / `.wux` disc images need the **disc key from your own Wii U dump**: put it next to the game with the
-same name (`Game.wux` → `Game.key`, 16 bytes), or in your own `keys.txt`.
+same name (`Game.wux` → `Game.key`, 16 bytes), or put your own `keys.txt` in the game's folder or a folder above it
+(for example your Wii U games folder on the USB drive or the PC share). This app can't see the `keys.txt` of another
+Cemu on the console, so copy it over once.
 **Without the key the game cannot start and Cemu opens on its own menu instead.** That is not a crash: add the key and
 start the game again from Game Vault.
 

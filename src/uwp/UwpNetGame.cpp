@@ -27,6 +27,7 @@
 #include "UwpNetGame.h"
 #include "Common/FileStream.h"
 #include "Cemu/Logging/CemuLogging.h"
+#include "Cafe/Filesystem/FST/KeyCache.h"
 
 namespace CemuUwp::NetGame
 {
@@ -395,6 +396,30 @@ std::filesystem::path Open(const std::string& url, const std::wstring& credFile)
 	std::string name = path.substr(path.find_last_of('\\') + 1);
 	std::filesystem::path standIn = std::filesystem::path(L"N:\\Game Vault network") / Wide(name);
 	FileStream::RegisterNetFile(standIn, game);
+	// a keys.txt kept with the games: in the game's folder or a folder above it on the share, read in as a stand-in
+	// file with its own name (one per folder, so another game's folder is read too)
+	Cred listCred = keyCred;
+	for (size_t end = path.find_last_of('\\'); ; end = path.find_last_of('\\', end - 1))
+	{
+		std::string dir = end == std::string::npos ? "" : path.substr(0, end + 1);
+		auto list = std::make_shared<SmbFile>(api, listCred, dir + "keys.txt");
+		if (list->Connect() && list->Size() > 0 && list->Size() <= 64 * 1024)
+		{
+			std::vector<uint8_t> bytes((size_t)list->Size());
+			if (list->Read(0, bytes.data(), bytes.size()))
+			{
+				std::filesystem::path listPath = std::filesystem::path(L"N:\\Game Vault network") /
+					Wide("keys " + server + " " + share + " " + std::to_string(std::hash<std::string>{}(dir)) + ".txt");
+				FileStream::RegisterNetFile(listPath, std::make_shared<MemoryFile>(std::move(bytes)));
+				cemuLog_log(LogType::Force, "network: keys.txt found in {}\\{}\\{}", server, share, dir);
+				KeyCache_AddKeysFile(listPath);
+				break;
+			}
+		}
+		if (end == std::string::npos || end == 0)
+			break;
+	}
+	Wipe(listCred.password);
 	// a disc key next to the image ("<game>.key"), which Cemu looks for when keys.txt has none for the disc
 	size_t dot = path.find_last_of('.');
 	if (dot != std::string::npos && dot > path.find_last_of('\\'))

@@ -1,4 +1,5 @@
 #include <mutex>
+#include <set>
 
 #include "Cemu/Logging/CemuLogging.h"
 #include "WindowSystem.h"
@@ -49,6 +50,8 @@ void KeyCache_AddKey128(uint8* key)
 
 bool sKeyCachePrepared = false;
 
+static void KeyCache_ReadKeys(FileStream* fs_keys, bool showErrors);
+
 void KeyCache_Prepare()
 {
 	mtxKeyCache.lock();
@@ -80,6 +83,32 @@ void KeyCache_Prepare()
 		mtxKeyCache.unlock();
 		return;
 	}
+	KeyCache_ReadKeys(fs_keys, true);
+	delete fs_keys;
+	mtxKeyCache.unlock();
+}
+
+// Game Vault: a keys.txt the player keeps with the games (on the USB drive or the share), read once per file.
+// Our Cemu is its own app, so the keys.txt of another Cemu on the console is out of its reach.
+// Returns true when the file added keys.
+bool KeyCache_AddKeysFile(const fs::path& keysPath)
+{
+	static std::set<fs::path> sKeysFilesRead;
+	KeyCache_Prepare();
+	std::lock_guard lock(mtxKeyCache);
+	if (!sKeysFilesRead.insert(keysPath).second)
+		return false;
+	std::unique_ptr<FileStream> fs_keys(FileStream::openFile2(keysPath));
+	if (!fs_keys)
+		return false;
+	size_t before = g_keyCache.size();
+	KeyCache_ReadKeys(fs_keys.get(), false);
+	cemuLog_log(LogType::Force, "keys: {} key(s) from {}", g_keyCache.size() - before, _pathToUtf8(keysPath));
+	return g_keyCache.size() > before;
+}
+
+static void KeyCache_ReadKeys(FileStream* fs_keys, bool showErrors)
+{
 	sint32 lineNumber = 0;
 	std::string line;
 	while( fs_keys->readLine(line) )
@@ -109,7 +138,10 @@ void KeyCache_Prepare()
 		if( strishex(line) == false )
 		{
 			auto errorMsg = _tr("Error in keys.txt at line {}", lineNumber);
-			WindowSystem::ShowErrorDialog(errorMsg, WindowSystem::ErrorCategory::KEYS_TXT_CREATION);
+			if (showErrors)
+				WindowSystem::ShowErrorDialog(errorMsg, WindowSystem::ErrorCategory::KEYS_TXT_CREATION);
+			else
+				cemuLog_log(LogType::Force, "keys: line {} is not a key, skipped", lineNumber);
 			continue;
 		}
 		if(line.size() == 32 )
@@ -124,6 +156,4 @@ void KeyCache_Prepare()
 			// invalid key length
 		}
 	}
-	delete fs_keys;
-	mtxKeyCache.unlock();
 }

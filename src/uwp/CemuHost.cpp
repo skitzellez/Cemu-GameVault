@@ -605,7 +605,7 @@ bool PrepareLaunchPath(const fs::path& launchPath)
 		TraceHostStage("prepare path: no disc key for this disc image");
 		s_launchFailure = "nokey";
 		WindowSystem::ShowErrorDialog(fmt::format(
-			"This Wii U disc image is encrypted and its disc key is missing.\nPut the key file from your disc dump next to it, named \"{}\", or add the key to keys.txt.",
+			"This Wii U disc image is encrypted and its disc key is missing.\nPut the key file from your disc dump next to it, named \"{}\", or put your keys.txt in the game's folder (or a folder above it, like the Wii U games folder).",
 			_pathToUtf8(launchPath.stem()) + ".key"));
 		return false;
 	}
