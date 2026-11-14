@@ -39,6 +39,7 @@
 #include <pugixml.hpp>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Gaming.Input.h>
+#include <winrt/Windows.ApplicationModel.h>
 #include <winrt/Windows.Storage.h>
 
 #include <algorithm>
@@ -61,6 +62,65 @@
 std::atomic_bool g_isGPUInitFinished = false;
 
 static std::string s_launchFailure;   // CemuHost::LastLaunchFailure
+
+// Game Vault's report log (2026-11-14): a copy of log.txt in the shared games\logs folder as "Wii U (Cemu).log",
+// which Game Vault sends with its reports (only with the player's yes), plus one line a minute in the form Game
+// Vault's report tools read for every emulator: "Game Vault: frame rate <fps>, CPU <%>, memory <MB> MB".
+namespace GvReport
+{
+double s_fpsSum = 0;
+int s_fpsCount = 0, s_minutes = 0;
+uint64 s_lastCpu = 0, s_lastWall = 0;
+
+uint64 FileTimeTicks(const FILETIME& t) { return (uint64(t.dwHighDateTime) << 32) | t.dwLowDateTime; }
+
+int CpuPercent()
+{
+	FILETIME create, exit, kernel, user, now;
+	if (!GetProcessTimes(GetCurrentProcess(), &create, &exit, &kernel, &user))
+		return -1;
+	GetSystemTimeAsFileTime(&now);
+	const uint64 cpu = FileTimeTicks(kernel) + FileTimeTicks(user), wall = FileTimeTicks(now);
+	SYSTEM_INFO info{};
+	GetNativeSystemInfo(&info);
+	int pct = -1;
+	if (s_lastWall && wall > s_lastWall)
+		pct = int(100.0 * double(cpu - s_lastCpu) / double(wall - s_lastWall) / std::max<DWORD>(1, info.dwNumberOfProcessors));
+	s_lastCpu = cpu;
+	s_lastWall = wall;
+	return pct;
+}
+
+void OnFrameRate(double fps)
+{
+	s_fpsSum += fps;
+	if (++s_fpsCount < 60)
+		return;
+	const auto mem = CemuUwp::MemoryBudgetService::GetLatestSnapshot();
+	cemuLog_writeLineToLog(fmt::format("Game Vault: frame rate {:.1f}, CPU {}%, memory {} MB, memory limit {} MB",
+		s_fpsSum / s_fpsCount, CpuPercent(), mem.usageBytes >> 20, mem.limitBytes >> 20));
+	cemuLog_writeLineToLog(fmt::format("-------- Game Vault: Cemu running {} min --------", ++s_minutes), false);
+	s_fpsSum = 0;
+	s_fpsCount = 0;
+}
+
+void Start()
+{
+	try
+	{
+		const auto games = winrt::Windows::Storage::ApplicationData::Current().GetPublisherCacheFolder(L"games");
+		cemuLog_setMirrorFile(fs::path(std::wstring(games.Path())) / L"logs" / L"Wii U (Cemu).log");
+		const auto v = winrt::Windows::ApplicationModel::Package::Current().Id().Version();
+		cemuLog_log(LogType::Force, fmt::format("Game Vault: Cemu for Game Vault {}.{}.{}.{}", v.Major, v.Minor, v.Build, v.Revision));
+	}
+	catch (...)
+	{
+		return;   // no shared folder (another publisher's install): log.txt only
+	}
+	CpuPercent();
+	g_gvFrameRateHook = OnFrameRate;
+}
+}
 
 namespace
 {
@@ -738,6 +798,7 @@ bool Initialize(const winrt::Windows::UI::Core::CoreWindow& window)
 			CemuUwp::Frontend::PushNotification("Some UWP local storage paths are not writable.");
 
 		cemuLog_createLogFile(false);
+		GvReport::Start();
 		cemuLog_log(LogType::Force, "UWP log initialized");
 		CemuUwp::MemoryBudgetService::Initialize();
 
@@ -807,6 +868,11 @@ bool LaunchPath(const fs::path& launchPath)
 	CemuUwp::Frontend::SetActive(false);
 	s_frontendActivityState.store(0, std::memory_order_release);
 	CafeSystem::LaunchForegroundTitle();
+	// Game Vault's report tools read these two lines (the same words Xenia writes)
+	cemuLog_log(LogType::Force, fmt::format("Title name: {}", CafeSystem::GetForegroundTitleName()));
+	cemuLog_log(LogType::Force, fmt::format("Title ID: {:016X}", (uint64)CafeSystem::GetForegroundTitleId()));
+	GvReport::s_fpsSum = 0;
+	GvReport::s_fpsCount = GvReport::s_minutes = 0;
 	s_titleLaunchOverridesActive = LaunchSettings::GetPersistentId().has_value() || LaunchSettings::GetNetworkService().has_value();
 	s_titleLaunchObservedRunning = s_titleLaunchOverridesActive && CafeSystem::IsTitleRunning();
 	CemuUwp::CompanionService::SetRunningTitle(CafeSystem::GetForegroundTitleName());

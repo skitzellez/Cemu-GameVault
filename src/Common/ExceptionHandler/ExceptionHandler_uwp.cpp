@@ -59,6 +59,7 @@ void HandleCrash(std::string_view reason, EXCEPTION_POINTERS* pointers)
 	CrashLog_Create();
 	CrashLog_SetOutputChannels(false, true);
 	CrashLog_WriteLine("");
+	CrashLog_WriteLine("===== CRASH REPORT (Cemu) =====");   // Game Vault's report tools look for this line
 	CrashLog_WriteHeader(fmt::format("Crash: {}", reason).c_str());
 	CrashLog_WriteLine(BUILD_VERSION_WITH_NAME_STRING);
 	LogExceptionRecord(pointers);

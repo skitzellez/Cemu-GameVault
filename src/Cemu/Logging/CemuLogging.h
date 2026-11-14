@@ -124,6 +124,11 @@ uint64 cemuLog_getFlag(LogType type);
 
 fs::path cemuLog_GetLogFilePath();
 void cemuLog_createLogFile(bool triggeredByCrash);
+// Game Vault: a copy of every log line in a second file (the shared games\logs folder, sent with Game Vault's
+// reports); it starts over when it passes 6 MB, so the newest lines are always there
+void cemuLog_setMirrorFile(const fs::path& path);
+// Game Vault: called once a second with the frame rate (LattePerformanceMonitor)
+extern void (*g_gvFrameRateHook)(double fps);
 [[nodiscard]] std::unique_lock<std::recursive_mutex> cemuLog_acquire(); // used for logging multiple lines at once
 
 class LoggingCallbacks

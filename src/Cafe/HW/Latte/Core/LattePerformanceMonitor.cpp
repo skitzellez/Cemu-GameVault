@@ -382,6 +382,8 @@ void LattePerformanceMonitor_frameEnd()
 		else
 		{
 			LatteOverlay_updateStats(fps, drawCallCounter / elapsedFrames, fastDrawCallCounter / elapsedFrames);
+			if (g_gvFrameRateHook)
+				g_gvFrameRateHook(fps);
 			WindowSystem::UpdateWindowTitles(false, false, fps);
 		}
 	}

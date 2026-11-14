@@ -92,6 +92,41 @@ struct _LogContext
 	}
 }LogContext;
 
+// Game Vault's copy of the log (cemuLog_setMirrorFile), written by the log thread only
+static std::ofstream s_mirror;
+static fs::path s_mirrorPath;
+static size_t s_mirrorBytes = 0;
+static std::mutex s_mirrorMutex;
+void (*g_gvFrameRateHook)(double fps) = nullptr;
+
+void cemuLog_setMirrorFile(const fs::path& path)
+{
+	std::lock_guard lock(s_mirrorMutex);
+	s_mirrorPath = path;
+	std::error_code ec;
+	fs::create_directories(path.parent_path(), ec);
+	s_mirror.open(path, std::ios::out | std::ios::binary | std::ios::trunc);
+	s_mirrorBytes = 0;
+}
+
+static void cemuLog_mirrorWrite(const std::string& text)
+{
+	std::lock_guard lock(s_mirrorMutex);
+	if (!s_mirror.is_open())
+		return;
+	if (s_mirrorBytes > (6u << 20))
+	{
+		s_mirror.close();
+		s_mirror.open(s_mirrorPath, std::ios::out | std::ios::binary | std::ios::trunc);
+		const std::string note = "[Game Vault: the log passed 6 MB, older lines left out]
+";
+		s_mirror.write(note.data(), note.size());
+		s_mirrorBytes = note.size();
+	}
+	s_mirror.write(text.data(), text.size());
+	s_mirrorBytes += text.size();
+}
+
 const std::map<LogType, std::string> g_logging_window_mapping
 {
 	{LogType::UnsupportedAPI,     "Unsupported API calls"},
@@ -143,9 +178,17 @@ void cemuLog_thread()
 		lock.unlock();
 
 		for (const auto& entry : cache_copy)
+		{
 			LogContext.file_stream.write(entry.data(), entry.size());
+			cemuLog_mirrorWrite(entry);
+		}
 
 		LogContext.file_stream.flush();
+		{
+			std::lock_guard mlock(s_mirrorMutex);
+			if (s_mirror.is_open())
+				s_mirror.flush();
+		}
 	}
 }
 
