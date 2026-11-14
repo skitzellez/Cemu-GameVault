@@ -118,8 +118,7 @@ static void cemuLog_mirrorWrite(const std::string& text)
 	{
 		s_mirror.close();
 		s_mirror.open(s_mirrorPath, std::ios::out | std::ios::binary | std::ios::trunc);
-		const std::string note = "[Game Vault: the log passed 6 MB, older lines left out]
-";
+		const std::string note = "[Game Vault: the log passed 6 MB, older lines left out]\n";
 		s_mirror.write(note.data(), note.size());
 		s_mirrorBytes = note.size();
 	}
