@@ -32,6 +32,8 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+// Game Vault's "Sharper picture (FSR)": fsr=1 in the start link (defined in CemuHost.cpp, applied at title launch)
+extern std::atomic_bool g_gvLinkFsr;
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
@@ -417,9 +419,6 @@ std::optional<std::wstring> TryGetQueryParameter(std::wstring_view rawQuery, std
 	}
 	return {};
 }
-
-// Game Vault's "Sharper picture (FSR)": fsr=1 in the start link; CemuHost applies it when the title launches
-std::atomic_bool g_gvLinkFsr{ false };
 
 std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows::Foundation::Uri& uri)
 {

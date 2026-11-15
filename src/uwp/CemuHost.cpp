@@ -66,7 +66,7 @@ static std::string s_launchFailure;   // CemuHost::LastLaunchFailure
 // Game Vault's report log (2026-11-14): a copy of log.txt in the shared games\logs folder as "Wii U (Cemu).log",
 // which Game Vault sends with its reports (only with the player's yes), plus one line a minute in the form Game
 // Vault's report tools read for every emulator: "Game Vault: frame rate <fps>, CPU <%>, memory <MB> MB".
-extern std::atomic_bool g_gvLinkFsr;   // UwpWindowSystem.cpp: fsr=1 in Game Vault's start link
+std::atomic_bool g_gvLinkFsr{ false };   // set by UwpWindowSystem.cpp from fsr=1 in Game Vault's start link
 
 namespace GvReport
 {
