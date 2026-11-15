@@ -418,6 +418,9 @@ std::optional<std::wstring> TryGetQueryParameter(std::wstring_view rawQuery, std
 	return {};
 }
 
+// Game Vault's "Sharper picture (FSR)": fsr=1 in the start link; CemuHost applies it when the title launches
+std::atomic_bool g_gvLinkFsr{ false };
+
 std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows::Foundation::Uri& uri)
 {
 	const std::wstring rawUri{ uri.RawUri().c_str() };
@@ -495,6 +498,10 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 		return reject("Cemu protocol command must provide a game path with -g or --game.");
 	}
 	request.launchPath = *launchPath;
+	{
+		const auto fsr = TryGetQueryParameter(rawQuery, L"fsr");
+		g_gvLinkFsr = fsr && *fsr == L"1";
+	}
 
 	// Game Vault: a Wii U disc image on a PC's shared folder or a NAS, read over the network (UwpNetGame.cpp)
 	if (const std::string launchUtf8 = _pathToUtf8(request.launchPath); launchUtf8.rfind("smb://", 0) == 0)

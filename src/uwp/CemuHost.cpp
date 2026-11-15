@@ -66,6 +66,8 @@ static std::string s_launchFailure;   // CemuHost::LastLaunchFailure
 // Game Vault's report log (2026-11-14): a copy of log.txt in the shared games\logs folder as "Wii U (Cemu).log",
 // which Game Vault sends with its reports (only with the player's yes), plus one line a minute in the form Game
 // Vault's report tools read for every emulator: "Game Vault: frame rate <fps>, CPU <%>, memory <MB> MB".
+extern std::atomic_bool g_gvLinkFsr;   // UwpWindowSystem.cpp: fsr=1 in Game Vault's start link
+
 namespace GvReport
 {
 double s_fpsSum = 0;
@@ -867,6 +869,13 @@ bool LaunchPath(const fs::path& launchPath)
 	// free shell artwork before the title competes for the Xbox app memory budget
 	CemuUwp::Frontend::SetActive(false);
 	s_frontendActivityState.store(0, std::memory_order_release);
+	if (g_gvLinkFsr)
+	{
+		// Game Vault's "Sharper picture (FSR)": FSR upscale filter for this run (not saved to settings.xml, so the
+		// player's own choice comes back when the option is off)
+		GetConfig().upscale_filter = kFsrFilter;
+		cemuLog_log(LogType::Force, "Game Vault: Sharper picture (FSR) on");
+	}
 	CafeSystem::LaunchForegroundTitle();
 	// Game Vault's report tools read these two lines (the same words Xenia writes)
 	cemuLog_log(LogType::Force, fmt::format("Title name: {}", CafeSystem::GetForegroundTitleName()));
