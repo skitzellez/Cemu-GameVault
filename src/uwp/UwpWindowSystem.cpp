@@ -34,6 +34,7 @@
 #include <atomic>
 // Game Vault's "Sharper picture (FSR)": fsr=1 in the start link (defined in CemuHost.cpp, applied at title launch)
 extern std::atomic_bool g_gvLinkFsr;
+extern std::atomic_int g_gvLinkFsrPct;   // fsrs=<percent>: its strength
 #include <cstdio>
 #include <cstdlib>
 #include <chrono>
@@ -500,6 +501,8 @@ std::optional<ProtocolLaunchRequest> ParseProtocolLaunchUri(const winrt::Windows
 	{
 		const auto fsr = TryGetQueryParameter(rawQuery, L"fsr");
 		g_gvLinkFsr = fsr && *fsr == L"1";
+		const auto fsrs = TryGetQueryParameter(rawQuery, L"fsrs");
+		g_gvLinkFsrPct = fsrs ? _wtoi(fsrs->c_str()) : 0;
 	}
 
 	// Game Vault: a Wii U disc image on a PC's shared folder or a NAS, read over the network (UwpNetGame.cpp)

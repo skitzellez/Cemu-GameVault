@@ -66,6 +66,7 @@ static std::string s_launchFailure;   // CemuHost::LastLaunchFailure
 // Game Vault's report log (2026-11-14): a copy of log.txt in the shared games\logs folder as "Wii U (Cemu).log",
 // which Game Vault sends with its reports (only with the player's yes), plus one line a minute in the form Game
 // Vault's report tools read for every emulator: "Game Vault: frame rate <fps>, CPU <%>, memory <MB> MB".
+std::atomic_int g_gvLinkFsrPct{ 0 };   // fsrs=<percent> with it: Game Vault's FSR strength
 std::atomic_bool g_gvLinkFsr{ false };   // set by UwpWindowSystem.cpp from fsr=1 in Game Vault's start link
 
 namespace GvReport
@@ -875,6 +876,12 @@ bool LaunchPath(const fs::path& launchPath)
 		// player's own choice comes back when the option is off)
 		GetConfig().upscale_filter = kFsrFilter;
 		cemuLog_log(LogType::Force, "Game Vault: Sharper picture (FSR) on");
+		// the strength: Cemu's FSR sharpness is already in percent (100 = sharpest)
+		if (const int pct = g_gvLinkFsrPct; pct > 0 && pct <= 100)
+		{
+			GetConfig().fsr_sharpness = pct;
+			cemuLog_log(LogType::Force, fmt::format("Game Vault: FSR strength {}%", pct));
+		}
 	}
 	CafeSystem::LaunchForegroundTitle();
 	// Game Vault's report tools read these two lines (the same words Xenia writes)
